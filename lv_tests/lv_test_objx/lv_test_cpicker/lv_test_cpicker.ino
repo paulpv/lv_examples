@@ -177,6 +177,29 @@ void setDisplayBrightness(float value, bool interactive) {
 //
 //
 
+static void cpicker_event_handler(lv_obj_t * cpicker, lv_event_t event) {
+  if (event == LV_EVENT_VALUE_CHANGED) {    
+    lv_cpicker_color_mode_t color_mode = lv_cpicker_get_color_mode(cpicker);
+    switch(color_mode) {
+      case LV_CPICKER_COLOR_MODE_HUE: {
+        uint16_t hue = lv_cpicker_get_hue(cpicker);
+        Serial.printf("cpicker_event_handler: LV_EVENT_VALUE_CHANGED hue=%d\r\n", hue);
+        break;
+      }
+      case LV_CPICKER_COLOR_MODE_SATURATION: {
+        uint8_t saturation = lv_cpicker_get_saturation(cpicker);
+        Serial.printf("cpicker_event_handler: LV_EVENT_VALUE_CHANGED saturation=%d\r\n", saturation);
+        break;
+      }
+      case LV_CPICKER_COLOR_MODE_VALUE: {
+        uint8_t value = lv_cpicker_get_value(cpicker);
+        Serial.printf("cpicker_event_handler: LV_EVENT_VALUE_CHANGED value=%d\r\n", value);
+        break;
+      }
+    }
+  }
+}
+
 void setup() {
   Serial.begin(115200);
   Serial.println("setup: littlevgl cpicker test");
@@ -239,7 +262,7 @@ void setup() {
 
   static lv_style_t styleMain;
   lv_style_copy(&styleMain, &lv_style_plain);
-  styleMain.line.width = pickerSize / 4;
+  styleMain.line.width = pickerSize * 0.2;
 
   static lv_style_t styleIndicator;
   lv_style_copy(&styleIndicator, &lv_style_plain);
@@ -249,7 +272,8 @@ void setup() {
 
   lv_obj_t * picker = lv_cpicker_create(scr, NULL);
   lv_cpicker_set_style(picker, LV_CPICKER_STYLE_MAIN, &styleMain);
-  lv_cpicker_set_style(picker, LV_CPICKER_STYLE_IND, &styleIndicator);
+  lv_cpicker_set_style(picker, LV_CPICKER_STYLE_INDICATOR, &styleIndicator);
+  lv_obj_set_event_cb(picker, cpicker_event_handler);
   lv_obj_set_size(picker, pickerSize, pickerSize);
   lv_obj_align(picker, NULL, LV_ALIGN_CENTER, 0, 0);
 
