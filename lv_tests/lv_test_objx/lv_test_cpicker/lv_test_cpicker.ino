@@ -314,6 +314,7 @@ void setup() {
 }
 
 void loop() {
+#if true
   if (touch.touched()) {
     touchPointCurrent = touch.getPoint();
     //touchText = "touchPoint=(" + String(touchPoint.x) + "," + String(touchPoint.y) + "," + String(touchPoint.z) + ")";
@@ -339,11 +340,14 @@ void loop() {
     float widthPercent = touchPointCurrent.x / (float) displayWidth;
     setDisplayBrightness(widthPercent, true);
   }
+#endif
 
   lv_task_handler();
   delay(5);
 
+#if true
   if (isTouched) {
     touchPointPrevious = touchPointCurrent;
   }
+#endif
 }
