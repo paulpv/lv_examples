@@ -198,7 +198,7 @@ static void cpicker_event_handler(lv_obj_t * cpicker, lv_event_t event) {
       }
     }
     lv_color_t color = lv_cpicker_get_color(cpicker);
-    Serial.printf("cpicker_event_handler: LV_EVENT_VALUE_CHANGED color=0x%06X\r\n", color);    
+    Serial.printf("cpicker_event_handler: LV_EVENT_VALUE_CHANGED color=0x%08X\r\n", color);    
   }
 }
 
