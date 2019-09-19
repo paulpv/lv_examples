@@ -197,6 +197,8 @@ static void cpicker_event_handler(lv_obj_t * cpicker, lv_event_t event) {
         break;
       }
     }
+    lv_color_t color = lv_cpicker_get_color(cpicker);
+    Serial.printf("cpicker_event_handler: LV_EVENT_VALUE_CHANGED color=0x%06X\r\n", color);    
   }
 }
 
@@ -250,7 +252,7 @@ void setup() {
   tick.attach_ms(LVGL_TICK_PERIOD, lv_tick_handler);
 
   lv_obj_t *label = lv_label_create(lv_scr_act(), NULL);
-  lv_label_set_text(label, "Hello LittlevGL v6.x");
+  lv_label_set_text(label, "LittlevGL v6.x Color Picker");
   lv_obj_align(label, NULL, LV_ALIGN_IN_TOP_MID, 0, 0);
 
   //lv_test_cpicker_1();
