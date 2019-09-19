@@ -105,9 +105,36 @@ static void my_disp_flush(lv_disp_drv_t * disp, const lv_area_t * area, lv_color
   lv_disp_flush_ready(disp);
 }
 
-TS_Point touchPointCurrent;
-TS_Point touchPointPrevious;
+TS_Point touchPointCurrent, touchPointPrevious;
 bool isTouched;
+const long displayActiveTimeoutMillis = 30000;
+unsigned long lastInteractionMillis = millis();
+
+bool touchUpdate() {
+  if (touch.touched()) {
+    touchPointCurrent = touch.getPoint();
+    // NOTE:(pv) Leave this uncommented until I solve why setBrightness is being passed a negative #...
+    //Serial.printf("touchUpdate: ORIGINAL touchPointCurrent=(%d, %d, %d)\n", touchPointCurrent.x, touchPointCurrent.y, touchPointCurrent.z);
+    if (touchPointCurrent.x == 0 && touchPointCurrent.y == 0 && touchPointCurrent.z == 0) {
+      // Ignore occasional "false" 0,0,0 presses
+      touchPointCurrent.x = touchPointCurrent.y = touchPointCurrent.z = -1;
+    } else {
+      matchTouchRotationToDisplayRotation(touchPointCurrent);
+      // NOTE:(pv) Leave this uncommented until I solve why setBrightness is being passed a negative #...
+      //Serial.printf("touchUpdate: ROTATED touchPointCurrent=(%d, %d, %d)\n", touchPointCurrent.x, touchPointCurrent.y, touchPointCurrent.z);
+
+      lastInteractionMillis = millis();
+    }
+  } else {
+    touchPointCurrent.x = touchPointCurrent.y = touchPointCurrent.z = -1;
+  }
+
+  isTouched = touchPointCurrent.x != -1 && touchPointCurrent.y != -1 && touchPointCurrent.z != -1;
+
+  if (isTouched) {
+    touchPointPrevious = touchPointCurrent;
+  }
+}
 
 static bool my_input_read(lv_indev_drv_t * drv, lv_indev_data_t* data) {
   data->point.x = isTouched ? touchPointCurrent.x : touchPointPrevious.x;
@@ -119,7 +146,7 @@ static bool my_input_read(lv_indev_drv_t * drv, lv_indev_data_t* data) {
 #if LV_USE_LOG != 0
 static void my_print(lv_log_level_t level, const char * file, uint32_t line, const char * dsc)
 {
-  Serial.printf("%s@%d->%s\r\n", file, line, dsc);
+  Serial.printf("%s@%d->%s\n", file, line, dsc);
   //delay(100);
 }
 #endif
@@ -147,7 +174,7 @@ static void my_print(lv_log_level_t level, const char * file, uint32_t line, con
 
 #define BACKLIGHT_INACTIVE_PERCENT 0.05
 
-float backlightPercent = 0.2;
+float backlightPercent = 0.8;
 
 void setupDisplayBrightness() {
   pinMode(TFT_LITE, OUTPUT);
@@ -157,16 +184,15 @@ void setupDisplayBrightness() {
 }
 
 void setDisplayBrightness(float value, bool interactive) {
-  Serial.println("setDisplayBrightness(" + String(value) + ", " + String(interactive) + ")");
+  Serial.printf("setDisplayBrightness(%f, %d)\n", value, interactive);
   if (value < 0) {
-    Serial.println("setDisplayBrightness: !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
     value = 0;
   }
   if (value > 1) {
     value = 1;
   }
   int dutyCycle = (int) round(255 * value);
-  //Serial.println("setDisplayBrightness: dutyCycle=" + String(dutyCycle));
+  //Serial.printf("setDisplayBrightness: dutyCycle=%d\n", dutyCycle);
   ledcWrite(BACKLIGHT_CHANNEL, dutyCycle);
 
   if (interactive) {
@@ -174,7 +200,7 @@ void setDisplayBrightness(float value, bool interactive) {
   }
 
   int brightnessWidth = (int) round(displayWidth * value);
-  //Serial.println("setDisplayBrightness: brightnessWidth=" + String(brightnessWidth));
+  //Serial.printf("setDisplayBrightness: brightnessWidth=%d\n", brightnessWidth);
   display.fillRect(0, displayHeight - BACKLIGHT_CONTROL_HEIGHT, brightnessWidth, BACKLIGHT_CONTROL_HEIGHT, BACKLIGHT_CONTROL_COLOR_FOREGROUND);
   display.fillRect(brightnessWidth, displayHeight - BACKLIGHT_CONTROL_HEIGHT, displayWidth, BACKLIGHT_CONTROL_HEIGHT, BACKLIGHT_CONTROL_COLOR_BACKGROUND);
 }
@@ -238,27 +264,27 @@ static void colorPicker_event_handler(lv_obj_t * cpicker, lv_event_t event) {
     switch (color_mode) {
       case LV_CPICKER_COLOR_MODE_HUE: {
           uint16_t hue = lv_cpicker_get_hue(cpicker);
-          Serial.printf("colorPicker_event_handler: LV_EVENT_VALUE_CHANGED hue=%d\r\n", hue);
+          Serial.printf("colorPicker_event_handler: LV_EVENT_VALUE_CHANGED hue=%d\n", hue);
           break;
         }
       case LV_CPICKER_COLOR_MODE_SATURATION: {
           uint8_t saturation = lv_cpicker_get_saturation(cpicker);
-          Serial.printf("colorPicker_event_handler: LV_EVENT_VALUE_CHANGED saturation=%d\r\n", saturation);
+          Serial.printf("colorPicker_event_handler: LV_EVENT_VALUE_CHANGED saturation=%d\n", saturation);
           break;
         }
       case LV_CPICKER_COLOR_MODE_VALUE: {
           uint8_t value = lv_cpicker_get_value(cpicker);
-          Serial.printf("colorPicker_event_handler: LV_EVENT_VALUE_CHANGED value=%d\r\n", value);
+          Serial.printf("colorPicker_event_handler: LV_EVENT_VALUE_CHANGED value=%d\n", value);
           break;
         }
     }
     lv_color_t color = lv_cpicker_get_color(cpicker);
-    Serial.printf("colorPicker_event_handler: LV_EVENT_VALUE_CHANGED color=0x%08X\r\n", color);
+    Serial.printf("colorPicker_event_handler: LV_EVENT_VALUE_CHANGED color=0x%08X\n", color);
   }
 }
 
 void colorPickerInstantiate(bool instantiate) {
-  Serial.printf("colorPickerInstantiate: instantiate=%d", instantiate);
+  Serial.printf("colorPickerInstantiate: instantiate=%d\n", instantiate);
   if (instantiate) {
     if (colorPicker != NULL) return;
 
@@ -307,7 +333,7 @@ void setup() {
   display.setRotation(DISPLAY_ROTATION);
   displayWidth = display.width();
   displayHeight = display.height();
-  Serial.println("setup: Display Resolution: " + String(displayWidth) + "x" + String(displayHeight));
+  Serial.printf("setup: Display Resolution: %dx%d\n", displayWidth, displayHeight);
 
   if (!touch.begin(TOUCH_THRESHOLD)) {
     Serial.println("setup: Unable to start touchscreen.");
@@ -395,27 +421,25 @@ void setup() {
   lv_scr_load(scr);
 }
 
-void loop() {
-  if (touch.touched()) {
-    touchPointCurrent = touch.getPoint();
-    //touchText = "touchPoint=(" + String(touchPoint.x) + "," + String(touchPoint.y) + "," + String(touchPoint.z) + ")";
-    //Serial.println("loop: ORIGINAL " + touchText);
-    if (touchPointCurrent.x == 0 && touchPointCurrent.y == 0 && touchPointCurrent.z == 0) {
-      // Ignore occasional "false" 0,0,0 presses
-      touchPointCurrent.x = touchPointCurrent.y = touchPointCurrent.z = -1;
-    } else {
-      matchTouchRotationToDisplayRotation(touchPointCurrent);
-      // NOTE:(pv) Leave this uncommented until I solve why setBrightness is being passed a negative %...
-      //touchText = "touchPoint=(" + String(touchPoint.x) + "," + String(touchPoint.y) + "," + String(touchPoint.z) + ")";
-      //Serial.println("loop: ROTATED " + touchText);
+bool displayActiveCurrent, displayActivePrevious;
 
-      //lastInteractionMillis = currentMillis;
+void loop() {
+  touchUpdate();
+
+  displayActiveCurrent = millis() - lastInteractionMillis < displayActiveTimeoutMillis;
+  //Serial.printf("loop: displayActiveCurrent=%d\n", displayActiveCurrent);
+  if (displayActiveCurrent) {
+    if (!displayActivePrevious) {
+      Serial.println("Display brighten");
+      setDisplayBrightness(backlightPercent, false);
     }
   } else {
-    touchPointCurrent.x = touchPointCurrent.y = touchPointCurrent.z = -1;
+    if (displayActivePrevious) {
+      Serial.println("Display dim");
+      setDisplayBrightness(BACKLIGHT_INACTIVE_PERCENT, false);
+    }
   }
-
-  isTouched = touchPointCurrent.x != -1 && touchPointCurrent.y != -1 && touchPointCurrent.z != -1;
+  displayActivePrevious = displayActiveCurrent;
 
   if (touchPointCurrent.y > displayHeight - BACKLIGHT_CONTROL_HEIGHT) {
     float widthPercent = touchPointCurrent.x / (float) displayWidth;
@@ -424,8 +448,4 @@ void loop() {
 
   lv_task_handler();
   delay(5);
-
-  if (isTouched) {
-    touchPointPrevious = touchPointCurrent;
-  }
 }
