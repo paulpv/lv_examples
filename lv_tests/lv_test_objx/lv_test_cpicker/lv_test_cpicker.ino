@@ -16,20 +16,18 @@ static lv_color_t buf_2[LV_HOR_RES_MAX * 10];
 // TinyPICO https://www.tinypico.com/gettingstarted
 #define TFT_CS 5
 #define TFT_DC 26
+#define TFT_RST 25
 #define TFT_MOSI 23
 #define TFT_MISO 19
 #define TFT_CLK 18
-#define TFT_RST 25
 #define TFT_LITE 32
-
-// ESP32 per https://github.com/adafruit/Adafruit_ILI9341/blob/master/Adafruit_ILI9341.cpp#L66
-#define SPI_DEFAULT_FREQ  40000000
 
 // NOTE: ESP32 can't use https://github.com/PaulStoffregen/ILI9341_t3/ per https://github.com/PaulStoffregen/ILI9341_t3/issues/37
 // https://github.com/adafruit/Adafruit-GFX-Library/blob/master/Adafruit_GFX.h
 // https://github.com/adafruit/Adafruit-GFX-Library/blob/master/Adafruit_SPITFT.h
 #include <Adafruit_ILI9341.h> // Display Driver https://github.com/adafruit/Adafruit_ILI9341
 
+// Using faster Hardware SPI (HWSPI); Providing MISO/MOSI/CLK results in slower Software SPI (SWSPI)
 Adafruit_ILI9341 display = Adafruit_ILI9341(TFT_CS, TFT_DC, TFT_RST);
 
 #include <Adafruit_FT6206.h> // Capacitive Touch Driver https://github.com/adafruit/Adafruit_FT6206_Library
@@ -111,7 +109,7 @@ TS_Point touchPointCurrent;
 TS_Point touchPointPrevious;
 bool isTouched;
 
-bool my_input_read(lv_indev_drv_t * drv, lv_indev_data_t* data) {
+static bool my_input_read(lv_indev_drv_t * drv, lv_indev_data_t* data) {
   data->point.x = isTouched ? touchPointCurrent.x : touchPointPrevious.x;
   data->point.y = isTouched ? touchPointCurrent.y : touchPointPrevious.y;
   data->state = isTouched ? LV_INDEV_STATE_PR : LV_INDEV_STATE_REL;
@@ -119,7 +117,7 @@ bool my_input_read(lv_indev_drv_t * drv, lv_indev_data_t* data) {
 }
 
 #if LV_USE_LOG != 0
-void my_print(lv_log_level_t level, const char * file, uint32_t line, const char * dsc)
+static void my_print(lv_log_level_t level, const char * file, uint32_t line, const char * dsc)
 {
   Serial.printf("%s@%d->%s\r\n", file, line, dsc);
   //delay(100);
@@ -149,7 +147,7 @@ void my_print(lv_log_level_t level, const char * file, uint32_t line, const char
 
 #define BACKLIGHT_INACTIVE_PERCENT 0.05
 
-float backlightPercent = 0.75;
+float backlightPercent = 0.2;
 
 void setupDisplayBrightness() {
   pinMode(TFT_LITE, OUTPUT);
@@ -185,36 +183,123 @@ void setDisplayBrightness(float value, bool interactive) {
 //
 //
 
-static void cpicker_event_handler(lv_obj_t * cpicker, lv_event_t event) {
+static lv_disp_drv_t disp_drv;
+static lv_disp_t * disp;
+static uint32_t time_sum = 0;
+static uint32_t refr_cnt = 0;
+static lv_obj_t * result_label;
+
+static void refr_monitor(lv_disp_drv_t * disp_drv, uint32_t time_ms, uint32_t px_num) {
+  time_sum += time_ms;
+  refr_cnt++;
+  //Serial.printf("refr_monitor: refr_cnt=%d\n", refr_cnt);
+  float time_avg = time_sum / (float) refr_cnt;
+  float fps = 1000 / time_avg;
+  char buf[256];
+  sprintf(buf, "FPS ~ %03.02f", fps);
+  lv_label_set_text(result_label, buf);
+
+  if (refr_cnt >= 10) {
+    disp_drv->monitor_cb = NULL;
+  }
+
+  lv_obj_invalidate(lv_disp_get_scr_act(disp));
+}
+
+static void buttonTest_event_handler(lv_obj_t * button, lv_event_t event) {
+  //Serial.printf("buttonTest_event_handler: event=%d\n", event);
+  if (event != LV_EVENT_CLICKED) return;
+
+  Serial.println("buttonTest_event_handler: event=LV_EVENT_CLICKED");
+
+  if (disp->driver.monitor_cb != NULL) return;
+
+  time_sum = 0;
+  refr_cnt = 0;
+  disp->driver.monitor_cb = refr_monitor;
+  lv_obj_invalidate(lv_disp_get_scr_act(disp));
+}
+
+lv_obj_t * buttonInstantiate_label = NULL;
+lv_obj_t * colorPicker = NULL;
+
+static void buttonShow_event_handler(lv_obj_t * button, lv_event_t event) {
+  //Serial.printf("buttonShow_event_handler: event=%d\n", event);
+  if (event != LV_EVENT_CLICKED) return;
+
+  Serial.println("buttonShow_event_handler: event=LV_EVENT_CLICKED");
+
+  colorPickerInstantiate(colorPicker == NULL);
+}
+
+static void colorPicker_event_handler(lv_obj_t * cpicker, lv_event_t event) {
   if (event == LV_EVENT_VALUE_CHANGED) {
     lv_cpicker_color_mode_t color_mode = lv_cpicker_get_color_mode(cpicker);
     switch (color_mode) {
       case LV_CPICKER_COLOR_MODE_HUE: {
           uint16_t hue = lv_cpicker_get_hue(cpicker);
-          Serial.printf("cpicker_event_handler: LV_EVENT_VALUE_CHANGED hue=%d\r\n", hue);
+          Serial.printf("colorPicker_event_handler: LV_EVENT_VALUE_CHANGED hue=%d\r\n", hue);
           break;
         }
       case LV_CPICKER_COLOR_MODE_SATURATION: {
           uint8_t saturation = lv_cpicker_get_saturation(cpicker);
-          Serial.printf("cpicker_event_handler: LV_EVENT_VALUE_CHANGED saturation=%d\r\n", saturation);
+          Serial.printf("colorPicker_event_handler: LV_EVENT_VALUE_CHANGED saturation=%d\r\n", saturation);
           break;
         }
       case LV_CPICKER_COLOR_MODE_VALUE: {
           uint8_t value = lv_cpicker_get_value(cpicker);
-          Serial.printf("cpicker_event_handler: LV_EVENT_VALUE_CHANGED value=%d\r\n", value);
+          Serial.printf("colorPicker_event_handler: LV_EVENT_VALUE_CHANGED value=%d\r\n", value);
           break;
         }
     }
     lv_color_t color = lv_cpicker_get_color(cpicker);
-    Serial.printf("cpicker_event_handler: LV_EVENT_VALUE_CHANGED color=0x%08X\r\n", color);
+    Serial.printf("colorPicker_event_handler: LV_EVENT_VALUE_CHANGED color=0x%08X\r\n", color);
+  }
+}
+
+void colorPickerInstantiate(bool instantiate) {
+  Serial.printf("colorPickerInstantiate: instantiate=%d", instantiate);
+  if (instantiate) {
+    if (colorPicker != NULL) return;
+
+    const uint32_t dispWidth = lv_disp_get_hor_res(disp);
+    const uint32_t dispHeight = lv_disp_get_ver_res(disp);
+    const uint32_t pickerSize = (uint32_t)round(LV_MATH_MIN(dispWidth, dispHeight) * 0.8);
+
+    static lv_style_t styleMain;
+    lv_style_copy(&styleMain, &lv_style_plain);
+    styleMain.line.width = pickerSize * 0.2;
+
+    static lv_style_t styleIndicator;
+    lv_style_copy(&styleIndicator, &lv_style_plain);
+    styleIndicator.body.main_color = LV_COLOR_WHITE;
+    styleIndicator.body.grad_color = styleIndicator.body.main_color;
+    styleIndicator.body.opa = LV_OPA_80;
+
+    lv_obj_t * scr = lv_disp_get_scr_act(disp);
+
+    colorPicker = lv_cpicker_create(scr, NULL);
+    lv_cpicker_set_style(colorPicker, LV_CPICKER_STYLE_MAIN, &styleMain);
+    lv_cpicker_set_style(colorPicker, LV_CPICKER_STYLE_INDICATOR, &styleIndicator);
+    lv_obj_set_event_cb(colorPicker, colorPicker_event_handler);
+    lv_obj_set_size(colorPicker, pickerSize, pickerSize);
+    lv_obj_align(colorPicker, NULL, LV_ALIGN_CENTER, 0, 0);
+
+    lv_label_set_text(buttonInstantiate_label, "Hide");
+  } else {
+    if (colorPicker == NULL) return;
+    lv_obj_del(colorPicker);
+    colorPicker = NULL;
+
+    lv_label_set_text(buttonInstantiate_label, "Show");
   }
 }
 
 void setup() {
   Serial.begin(115200);
-  Serial.println("setup: littlevgl cpicker test");
+  Serial.println("setup: littlevgl color picker test");
 
-  display.begin(SPI_DEFAULT_FREQ);
+  display.begin(); // ESP32 SPI_DEFAULT_FREQ is per ~ https://github.com/adafruit/Adafruit_ILI9341/blob/master/Adafruit_ILI9341.cpp#L66
   display.fillScreen(ILI9341_BLACK);
   display.setRotation(2);
   touchWidth = display.width();
@@ -244,13 +329,12 @@ void setup() {
 
   lv_disp_buf_init(&disp_buf, buf_1, buf_2, LV_HOR_RES_MAX * 10);
 
-  lv_disp_drv_t disp_drv;
   lv_disp_drv_init(&disp_drv);
   disp_drv.hor_res = displayWidth;
   disp_drv.ver_res = displayHeight;
   disp_drv.flush_cb = my_disp_flush;
   disp_drv.buffer = &disp_buf;
-  lv_disp_t * disp = lv_disp_drv_register(&disp_drv);
+  disp = lv_disp_drv_register(&disp_drv);
 
   lv_indev_drv_t indev_drv;
   lv_indev_drv_init(&indev_drv);
@@ -260,42 +344,28 @@ void setup() {
 
   tick.attach_ms(LVGL_TICK_PERIOD, lv_tick_handler);
 
-  lv_obj_t *label = lv_label_create(lv_scr_act(), NULL);
-  lv_label_set_text(label, "LittlevGL v6.x Color Picker");
-  lv_obj_align(label, NULL, LV_ALIGN_IN_TOP_MID, 0, 0);
-
-  //lv_test_cpicker_1();
-
-  const uint32_t dispWidth = lv_disp_get_hor_res(disp);
-  const uint32_t dispHeight = lv_disp_get_ver_res(disp);
-  const uint32_t pickerSize = (uint32_t)round(LV_MATH_MIN(dispWidth, dispHeight) * 0.8);
   lv_obj_t * scr = lv_scr_act();
 
-  static lv_style_t styleMain;
-  lv_style_copy(&styleMain, &lv_style_plain);
-  styleMain.line.width = pickerSize * 0.2;
+  lv_obj_t * title = lv_label_create(scr, NULL);
+  lv_label_set_text(title, "LittlevGL v6.x Color Picker");
+  lv_obj_align(title, NULL, LV_ALIGN_IN_TOP_MID, 0, 0);
 
-  static lv_style_t styleIndicator;
-  lv_style_copy(&styleIndicator, &lv_style_plain);
-  styleIndicator.body.main_color = LV_COLOR_WHITE;
-  styleIndicator.body.grad_color = styleIndicator.body.main_color;
-  styleIndicator.body.opa = LV_OPA_80;
-
-  lv_obj_t * picker = lv_cpicker_create(scr, NULL);
-  lv_cpicker_set_style(picker, LV_CPICKER_STYLE_MAIN, &styleMain);
-  lv_cpicker_set_style(picker, LV_CPICKER_STYLE_INDICATOR, &styleIndicator);
-  lv_obj_set_event_cb(picker, cpicker_event_handler);
-  lv_obj_set_size(picker, pickerSize, pickerSize);
-  lv_obj_align(picker, NULL, LV_ALIGN_CENTER, 0, 0);
+  lv_obj_t * buttonInstantiate = lv_btn_create(scr, NULL);
+  lv_btn_set_fit(buttonInstantiate, LV_FIT_TIGHT);
+  lv_obj_align(buttonInstantiate, NULL, LV_ALIGN_IN_TOP_LEFT, 0, 0);
+  lv_obj_set_event_cb(buttonInstantiate, buttonShow_event_handler);
+  buttonInstantiate_label = lv_label_create(buttonInstantiate, NULL);
+  lv_label_set_text(buttonInstantiate_label, "Show");
 
 #if true
-  lv_cpicker_set_color(picker, LV_COLOR_CYAN);
-  lv_scr_load(scr);
-#else
-  lv_scr_load(scr);
 
+  colorPickerInstantiate(true);
+
+#if true
+  lv_cpicker_set_color(colorPicker, LV_COLOR_CYAN);
+#else
   lv_anim_t a;
-  a.var = picker;
+  a.var = colorPicker;
   a.start = 0;
   a.end = 359;
   a.exec_cb = (lv_anim_exec_xcb_t) lv_cpicker_set_hue;
@@ -308,6 +378,21 @@ void setup() {
   a.repeat_pause = 0;
   lv_anim_create(&a);
 #endif
+
+#endif
+
+  lv_obj_t * buttonTest = lv_btn_create(scr, NULL);
+  lv_btn_set_fit(buttonTest, LV_FIT_TIGHT);
+  lv_obj_align(buttonTest, NULL, LV_ALIGN_IN_BOTTOM_LEFT, 0, 0);
+  lv_obj_set_event_cb(buttonTest, buttonTest_event_handler);
+  lv_obj_t * buttonTest_label = lv_label_create(buttonTest, NULL);
+  lv_label_set_text(buttonTest_label, "Test");
+
+  result_label = lv_label_create(scr, NULL);
+  lv_label_set_text(result_label, "FPS ~ ?");
+  lv_obj_align(result_label, NULL, LV_ALIGN_IN_BOTTOM_MID, 0, 0);
+
+  lv_scr_load(scr);
 }
 
 void loop() {
