@@ -210,6 +210,8 @@ static void cpicker_event_handler(lv_obj_t * cpicker, lv_event_t event) {
   }
 }
 
+//#define MINIMAL
+
 void setup() {
   Serial.begin(115200);
   Serial.println("setup: littlevgl cpicker test");
@@ -263,7 +265,7 @@ void setup() {
   lv_label_set_text(label, "LittlevGL v6.x Color Picker");
   lv_obj_align(label, NULL, LV_ALIGN_IN_TOP_MID, 0, 0);
 
-#if true
+#ifndef MINIMAL
 
   //lv_test_cpicker_1();
 
@@ -314,7 +316,7 @@ void setup() {
 }
 
 void loop() {
-#if true
+#ifndef MINIMAL
   if (touch.touched()) {
     touchPointCurrent = touch.getPoint();
     //touchText = "touchPoint=(" + String(touchPoint.x) + "," + String(touchPoint.y) + "," + String(touchPoint.z) + ")";
@@ -345,7 +347,7 @@ void loop() {
   lv_task_handler();
   delay(5);
 
-#if true
+#ifndef MINIMAL
   if (isTouched) {
     touchPointPrevious = touchPointCurrent;
   }
