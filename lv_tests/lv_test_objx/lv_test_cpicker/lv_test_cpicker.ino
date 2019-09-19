@@ -205,6 +205,9 @@ void setup() {
   lv_log_register_print_cb(my_print);
 #endif
 
+  lv_theme_t * th = lv_theme_night_init(0, NULL);
+  lv_theme_set_current(th);
+
   lv_disp_buf_init(&disp_buf, buf_1, buf_2, LV_HOR_RES_MAX * 10);
 
   lv_disp_drv_t disp_drv;
@@ -213,7 +216,7 @@ void setup() {
   disp_drv.ver_res = displayHeight;
   disp_drv.flush_cb = my_disp_flush;
   disp_drv.buffer = &disp_buf;
-  lv_disp_drv_register(&disp_drv);
+  lv_disp_t * disp = lv_disp_drv_register(&disp_drv);
 
   lv_indev_drv_t indev_drv;
   lv_indev_drv_init(&indev_drv);
@@ -229,27 +232,47 @@ void setup() {
 
   //lv_test_cpicker_1();
 
-  const uint32_t pickerSize = 200;
+  const uint32_t dispWidth = lv_disp_get_hor_res(disp);
+  const uint32_t dispHeight = lv_disp_get_ver_res(disp);
+  const uint32_t pickerSize = (uint32_t)round(LV_MATH_MIN(dispWidth, dispHeight) * 0.8);
   lv_obj_t * scr = lv_scr_act();
 
-  static lv_style_t style;
-  lv_style_copy(&style, &lv_style_plain);
-  style.line.color = lv_color_hsv_to_rgb(0, 100, 100);
-  style.line.width = pickerSize / 5;
-  style.body.padding.inner = 8;
+  static lv_style_t styleMain;
+  lv_style_copy(&styleMain, &lv_style_plain);
+  styleMain.line.width = pickerSize / 4;
 
-  static lv_style_t indicStyle;
-  lv_style_copy(&indicStyle, &lv_style_plain);
-  indicStyle.body.main_color = LV_COLOR_WHITE;
-  indicStyle.body.grad_color = indicStyle.body.main_color;
-  indicStyle.body.opa = LV_OPA_80;
+  static lv_style_t styleIndicator;
+  lv_style_copy(&styleIndicator, &lv_style_plain);
+  styleIndicator.body.main_color = LV_COLOR_WHITE;
+  styleIndicator.body.grad_color = styleIndicator.body.main_color;
+  styleIndicator.body.opa = LV_OPA_80;
 
   lv_obj_t * picker = lv_cpicker_create(scr, NULL);
-  lv_cpicker_set_style(picker, LV_CPICKER_STYLE_MAIN, &style);
-  lv_cpicker_set_style(picker, LV_CPICKER_STYLE_IND, &indicStyle);
+  lv_cpicker_set_style(picker, LV_CPICKER_STYLE_MAIN, &styleMain);
+  lv_cpicker_set_style(picker, LV_CPICKER_STYLE_IND, &styleIndicator);
   lv_obj_set_size(picker, pickerSize, pickerSize);
   lv_obj_align(picker, NULL, LV_ALIGN_CENTER, 0, 0);
+
+#if true
+  lv_cpicker_set_color(picker, LV_COLOR_CYAN);
   lv_scr_load(scr);
+#else
+  lv_scr_load(scr);
+
+  lv_anim_t a;
+  a.var = picker;
+  a.start = 0;
+  a.end = 359;
+  a.exec_cb = (lv_anim_exec_xcb_t) lv_cpicker_set_hue;
+  a.path_cb = lv_anim_path_linear;
+  a.act_time = 0;
+  a.time = 5000;
+  a.playback = 0;
+  a.playback_pause = 0;
+  a.repeat = 1;
+  a.repeat_pause = 1000;
+  lv_anim_create(&a);
+#endif
 }
 
 void loop() {
