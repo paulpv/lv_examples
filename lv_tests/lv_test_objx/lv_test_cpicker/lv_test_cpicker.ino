@@ -92,16 +92,16 @@ static void lv_tick_handler(void) {
   lv_tick_inc(LVGL_TICK_PERIOD);
 }
 
-int my_disp_flush_x, my_disp_flush_y;
+int my_disp_flush_width, my_disp_flush_height;
 
 static void my_disp_flush(lv_disp_drv_t * disp, const lv_area_t * area, lv_color_t * color_p) {
+  my_disp_flush_width = area->x2 - area->x1 + 1;
+  my_disp_flush_height = area->y2 - area->y1 + 1;
   display.startWrite();
-  display.setAddrWindow(area->x1, area->y1, (area->x2 - area->x1 + 1), (area->y2 - area->y1 + 1));
-  for (my_disp_flush_y = area->y1; my_disp_flush_y <= area->y2; my_disp_flush_y++) {
-    for (my_disp_flush_x = area->x1; my_disp_flush_x <= area->x2; my_disp_flush_x++) {
-      display.writeColor(color_p->full, 1);
-      color_p++;
-    }
+  display.setAddrWindow(area->x1, area->y1, my_disp_flush_width, my_disp_flush_height);
+  while ((my_disp_flush_height--) > 0) {
+    display.writePixels((uint16_t*)color_p, my_disp_flush_width, false);
+    color_p += my_disp_flush_width;
   }
   display.endWrite();
   lv_disp_flush_ready(disp);
@@ -149,7 +149,7 @@ void my_print(lv_log_level_t level, const char * file, uint32_t line, const char
 
 #define BACKLIGHT_INACTIVE_PERCENT 0.05
 
-float backlightPercent = 0.2;
+float backlightPercent = 0.75;
 
 void setupDisplayBrightness() {
   pinMode(TFT_LITE, OUTPUT);
@@ -186,27 +186,27 @@ void setDisplayBrightness(float value, bool interactive) {
 //
 
 static void cpicker_event_handler(lv_obj_t * cpicker, lv_event_t event) {
-  if (event == LV_EVENT_VALUE_CHANGED) {    
+  if (event == LV_EVENT_VALUE_CHANGED) {
     lv_cpicker_color_mode_t color_mode = lv_cpicker_get_color_mode(cpicker);
-    switch(color_mode) {
+    switch (color_mode) {
       case LV_CPICKER_COLOR_MODE_HUE: {
-        uint16_t hue = lv_cpicker_get_hue(cpicker);
-        Serial.printf("cpicker_event_handler: LV_EVENT_VALUE_CHANGED hue=%d\r\n", hue);
-        break;
-      }
+          uint16_t hue = lv_cpicker_get_hue(cpicker);
+          Serial.printf("cpicker_event_handler: LV_EVENT_VALUE_CHANGED hue=%d\r\n", hue);
+          break;
+        }
       case LV_CPICKER_COLOR_MODE_SATURATION: {
-        uint8_t saturation = lv_cpicker_get_saturation(cpicker);
-        Serial.printf("cpicker_event_handler: LV_EVENT_VALUE_CHANGED saturation=%d\r\n", saturation);
-        break;
-      }
+          uint8_t saturation = lv_cpicker_get_saturation(cpicker);
+          Serial.printf("cpicker_event_handler: LV_EVENT_VALUE_CHANGED saturation=%d\r\n", saturation);
+          break;
+        }
       case LV_CPICKER_COLOR_MODE_VALUE: {
-        uint8_t value = lv_cpicker_get_value(cpicker);
-        Serial.printf("cpicker_event_handler: LV_EVENT_VALUE_CHANGED value=%d\r\n", value);
-        break;
-      }
+          uint8_t value = lv_cpicker_get_value(cpicker);
+          Serial.printf("cpicker_event_handler: LV_EVENT_VALUE_CHANGED value=%d\r\n", value);
+          break;
+        }
     }
     lv_color_t color = lv_cpicker_get_color(cpicker);
-    Serial.printf("cpicker_event_handler: LV_EVENT_VALUE_CHANGED color=0x%08X\r\n", color);    
+    Serial.printf("cpicker_event_handler: LV_EVENT_VALUE_CHANGED color=0x%08X\r\n", color);
   }
 }
 
@@ -215,7 +215,7 @@ void setup() {
   Serial.println("setup: littlevgl cpicker test");
 
   display.begin(SPI_DEFAULT_FREQ);
-  display.fillScreen(ILI9341_BLACK);  
+  display.fillScreen(ILI9341_BLACK);
   display.setRotation(2);
   touchWidth = display.width();
   touchHeight = display.height();
@@ -305,7 +305,7 @@ void setup() {
   a.playback = 0;
   a.playback_pause = 0;
   a.repeat = 1;
-  a.repeat_pause = 1000;
+  a.repeat_pause = 0;
   lv_anim_create(&a);
 #endif
 }
