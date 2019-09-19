@@ -30,7 +30,7 @@ static lv_color_t buf_2[LV_HOR_RES_MAX * 10];
 // https://github.com/adafruit/Adafruit-GFX-Library/blob/master/Adafruit_SPITFT.h
 #include <Adafruit_ILI9341.h> // Display Driver https://github.com/adafruit/Adafruit_ILI9341
 
-Adafruit_ILI9341 display = Adafruit_ILI9341(TFT_CS, TFT_DC, TFT_MOSI, TFT_CLK, TFT_RST, TFT_MISO);
+Adafruit_ILI9341 display = Adafruit_ILI9341(TFT_CS, TFT_DC, TFT_RST);
 
 #include <Adafruit_FT6206.h> // Capacitive Touch Driver https://github.com/adafruit/Adafruit_FT6206_Library
 
@@ -210,13 +210,12 @@ static void cpicker_event_handler(lv_obj_t * cpicker, lv_event_t event) {
   }
 }
 
-//#define MINIMAL
-
 void setup() {
   Serial.begin(115200);
   Serial.println("setup: littlevgl cpicker test");
 
   display.begin(SPI_DEFAULT_FREQ);
+  display.fillScreen(ILI9341_BLACK);  
   display.setRotation(2);
   touchWidth = display.width();
   touchHeight = display.height();
@@ -265,8 +264,6 @@ void setup() {
   lv_label_set_text(label, "LittlevGL v6.x Color Picker");
   lv_obj_align(label, NULL, LV_ALIGN_IN_TOP_MID, 0, 0);
 
-#ifndef MINIMAL
-
   //lv_test_cpicker_1();
 
   const uint32_t dispWidth = lv_disp_get_hor_res(disp);
@@ -311,12 +308,9 @@ void setup() {
   a.repeat_pause = 1000;
   lv_anim_create(&a);
 #endif
-
-#endif
 }
 
 void loop() {
-#ifndef MINIMAL
   if (touch.touched()) {
     touchPointCurrent = touch.getPoint();
     //touchText = "touchPoint=(" + String(touchPoint.x) + "," + String(touchPoint.y) + "," + String(touchPoint.z) + ")";
@@ -342,14 +336,11 @@ void loop() {
     float widthPercent = touchPointCurrent.x / (float) displayWidth;
     setDisplayBrightness(widthPercent, true);
   }
-#endif
 
   lv_task_handler();
   delay(5);
 
-#ifndef MINIMAL
   if (isTouched) {
     touchPointPrevious = touchPointCurrent;
   }
-#endif
 }
