@@ -9,7 +9,9 @@ static lv_disp_buf_t disp_buf;
 static lv_color_t buf_1[LV_HOR_RES_MAX * 10];
 static lv_color_t buf_2[LV_HOR_RES_MAX * 10];
 
-#include <Adafruit_ILI9341.h> // Display Driver https://github.com/adafruit/Adafruit_ILI9341
+//
+//
+//
 
 // TinyPICO https://www.tinypico.com/gettingstarted
 #define TFT_CS 5
@@ -19,6 +21,14 @@ static lv_color_t buf_2[LV_HOR_RES_MAX * 10];
 #define TFT_CLK 18
 #define TFT_RST 25
 #define TFT_LITE 32
+
+// ESP32 per https://github.com/adafruit/Adafruit_ILI9341/blob/master/Adafruit_ILI9341.cpp#L66
+#define SPI_DEFAULT_FREQ  40000000
+
+// NOTE: ESP32 can't use https://github.com/PaulStoffregen/ILI9341_t3/ per https://github.com/PaulStoffregen/ILI9341_t3/issues/37
+// https://github.com/adafruit/Adafruit-GFX-Library/blob/master/Adafruit_GFX.h
+// https://github.com/adafruit/Adafruit-GFX-Library/blob/master/Adafruit_SPITFT.h
+#include <Adafruit_ILI9341.h> // Display Driver https://github.com/adafruit/Adafruit_ILI9341
 
 Adafruit_ILI9341 display = Adafruit_ILI9341(TFT_CS, TFT_DC, TFT_MOSI, TFT_CLK, TFT_RST, TFT_MISO);
 
@@ -83,15 +93,13 @@ static void lv_tick_handler(void) {
 }
 
 int my_disp_flush_x, my_disp_flush_y;
-uint16_t my_disp_flush_color;
 
-void my_disp_flush(lv_disp_drv_t * disp, const lv_area_t * area, lv_color_t * color_p) {
+static void my_disp_flush(lv_disp_drv_t * disp, const lv_area_t * area, lv_color_t * color_p) {
   display.startWrite();
   display.setAddrWindow(area->x1, area->y1, (area->x2 - area->x1 + 1), (area->y2 - area->y1 + 1));
   for (my_disp_flush_y = area->y1; my_disp_flush_y <= area->y2; my_disp_flush_y++) {
     for (my_disp_flush_x = area->x1; my_disp_flush_x <= area->x2; my_disp_flush_x++) {
-      my_disp_flush_color = color_p->full;
-      display.writeColor(my_disp_flush_color, 1);
+      display.writeColor(color_p->full, 1);
       color_p++;
     }
   }
@@ -206,7 +214,7 @@ void setup() {
   Serial.begin(115200);
   Serial.println("setup: littlevgl cpicker test");
 
-  display.begin();
+  display.begin(SPI_DEFAULT_FREQ);
   display.setRotation(2);
   touchWidth = display.width();
   touchHeight = display.height();
@@ -255,6 +263,8 @@ void setup() {
   lv_label_set_text(label, "LittlevGL v6.x Color Picker");
   lv_obj_align(label, NULL, LV_ALIGN_IN_TOP_MID, 0, 0);
 
+#if true
+
   //lv_test_cpicker_1();
 
   const uint32_t dispWidth = lv_disp_get_hor_res(disp);
@@ -298,6 +308,8 @@ void setup() {
   a.repeat = 1;
   a.repeat_pause = 1000;
   lv_anim_create(&a);
+#endif
+
 #endif
 }
 
