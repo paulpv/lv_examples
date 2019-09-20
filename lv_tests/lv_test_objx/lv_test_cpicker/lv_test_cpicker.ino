@@ -120,7 +120,7 @@ bool touchUpdate() {
     } else {
       matchTouchRotationToDisplayRotation(touchPointCurrent);
       // NOTE:(pv) Leave this uncommented until I solve why setBrightness is being passed a negative #...
-      //Serial.printf("touchUpdate: ROTATED touchPointCurrent=(%d, %d, %d)\n", touchPointCurrent.x, touchPointCurrent.y, touchPointCurrent.z);
+      //Serial.printf("touchUpdate:  ROTATED touchPointCurrent=(%d, %d, %d)\n", touchPointCurrent.x, touchPointCurrent.y, touchPointCurrent.z);
 
       lastInteractionMillis = millis();
     }
@@ -154,54 +154,51 @@ static void my_print(lv_log_level_t level, const char * file, uint32_t line, con
 //
 //
 
-#define DISPLAY_COLOR_TEXT ILI9341_WHITE
-#define DISPLAY_COLOR_BACKGROUND ILI9341_BLACK
-
-// Default font is 6x8
-#define DISPLAY_FONT_HEIGHT 8
-#define DISPLAY_FONT_ORIGIN_Y 0
-#define DISPLAY_FONT_SCALE 2
-
 // Backlight PWM properties 12kHz 8-bit PWM
 #define BACKLIGHT_CHANNEL 0
 #define BACKLIGHT_FREQUENCY 12000
 #define BACKLIGHT_RESOLUTION_BITS 8
 
-#define BACKLIGHT_CONTROL_COLOR_FOREGROUND ILI9341_MAGENTA
-#define BACKLIGHT_CONTROL_COLOR_BACKGROUND ILI9341_BLACK
-#define BACKLIGHT_CONTROL_HEIGHT (DISPLAY_FONT_HEIGHT + 2)
-
 #define BACKLIGHT_INACTIVE_PERCENT 0.05
 
 float backlightPercent = 0.8;
+
+lv_obj_t * sliderBrightness;
 
 void setupDisplayBrightness() {
   pinMode(TFT_LITE, OUTPUT);
   ledcSetup(BACKLIGHT_CHANNEL, BACKLIGHT_FREQUENCY, BACKLIGHT_RESOLUTION_BITS);
   ledcAttachPin(TFT_LITE, BACKLIGHT_CHANNEL);
-  setDisplayBrightness(backlightPercent, true);
+  setDisplayBrightness(backlightPercent, true, false);
 }
 
-void setDisplayBrightness(float value, bool interactive) {
-  Serial.printf("setDisplayBrightness(%f, %d)\n", value, interactive);
-  if (value < 0) {
-    value = 0;
+static void sliderBrightness_event_handler(lv_obj_t * slider, lv_event_t event) {
+  if (event != LV_EVENT_VALUE_CHANGED) return;
+  uint16_t value = lv_slider_get_value(slider);
+  //Serial.printf("sliderBrightness_event_handler: value=%d\n", value);
+  setDisplayBrightness(value * 0.01, true, false);
+}
+
+void setDisplayBrightness(float percent, bool remember, bool updateUi) {
+  Serial.printf("setDisplayBrightness(%f, %d, %d)\n", percent, remember, updateUi);
+  if (percent < 0) {
+    percent = 0;
   }
-  if (value > 1) {
-    value = 1;
+  if (percent > 1) {
+    percent = 1;
   }
-  int dutyCycle = (int) round(255 * value);
+
+  int dutyCycle = (int) round(255 * percent);
   //Serial.printf("setDisplayBrightness: dutyCycle=%d\n", dutyCycle);
   ledcWrite(BACKLIGHT_CHANNEL, dutyCycle);
 
-  if (interactive) {
-    backlightPercent = value;
+  if (remember) {
+    backlightPercent = percent;
   }
 
-  int brightnessWidth = (int) round(displayWidth * value);
-  //Serial.printf("setDisplayBrightness: brightnessWidth=%d\n", brightnessWidth);
-  display.fillRect(0, displayHeight - BACKLIGHT_CONTROL_HEIGHT, brightnessWidth, BACKLIGHT_CONTROL_HEIGHT, BACKLIGHT_CONTROL_COLOR_FOREGROUND);
-  display.fillRect(brightnessWidth, displayHeight - BACKLIGHT_CONTROL_HEIGHT, displayWidth, BACKLIGHT_CONTROL_HEIGHT, BACKLIGHT_CONTROL_COLOR_BACKGROUND);
+  if (updateUi && sliderBrightness != NULL) {
+    lv_slider_set_value(sliderBrightness, round(percent * 100), LV_ANIM_OFF);
+  }
 }
 
 //
@@ -258,28 +255,27 @@ static void buttonShow_event_handler(lv_obj_t * button, lv_event_t event) {
 }
 
 static void colorPicker_event_handler(lv_obj_t * cpicker, lv_event_t event) {
-  if (event == LV_EVENT_VALUE_CHANGED) {
-    lv_cpicker_color_mode_t color_mode = lv_cpicker_get_color_mode(cpicker);
-    switch (color_mode) {
-      case LV_CPICKER_COLOR_MODE_HUE: {
-          uint16_t hue = lv_cpicker_get_hue(cpicker);
-          Serial.printf("colorPicker_event_handler: LV_EVENT_VALUE_CHANGED hue=%d\n", hue);
-          break;
-        }
-      case LV_CPICKER_COLOR_MODE_SATURATION: {
-          uint8_t saturation = lv_cpicker_get_saturation(cpicker);
-          Serial.printf("colorPicker_event_handler: LV_EVENT_VALUE_CHANGED saturation=%d\n", saturation);
-          break;
-        }
-      case LV_CPICKER_COLOR_MODE_VALUE: {
-          uint8_t value = lv_cpicker_get_value(cpicker);
-          Serial.printf("colorPicker_event_handler: LV_EVENT_VALUE_CHANGED value=%d\n", value);
-          break;
-        }
-    }
-    lv_color_t color = lv_cpicker_get_color(cpicker);
-    Serial.printf("colorPicker_event_handler: LV_EVENT_VALUE_CHANGED color=0x%08X\n", color);
+  if (event != LV_EVENT_VALUE_CHANGED) return;
+  lv_cpicker_color_mode_t color_mode = lv_cpicker_get_color_mode(cpicker);
+  switch (color_mode) {
+    case LV_CPICKER_COLOR_MODE_HUE: {
+        uint16_t hue = lv_cpicker_get_hue(cpicker);
+        Serial.printf("colorPicker_event_handler: LV_EVENT_VALUE_CHANGED hue=%d\n", hue);
+        break;
+      }
+    case LV_CPICKER_COLOR_MODE_SATURATION: {
+        uint8_t saturation = lv_cpicker_get_saturation(cpicker);
+        Serial.printf("colorPicker_event_handler: LV_EVENT_VALUE_CHANGED saturation=%d\n", saturation);
+        break;
+      }
+    case LV_CPICKER_COLOR_MODE_VALUE: {
+        uint8_t value = lv_cpicker_get_value(cpicker);
+        Serial.printf("colorPicker_event_handler: LV_EVENT_VALUE_CHANGED value=%d\n", value);
+        break;
+      }
   }
+  lv_color_t color = lv_cpicker_get_color(cpicker);
+  Serial.printf("colorPicker_event_handler: LV_EVENT_VALUE_CHANGED color=0x%08X\n", color);
 }
 
 void colorPickerInstantiate(bool instantiate) {
@@ -406,6 +402,14 @@ void setup() {
 
 #endif
 
+  sliderBrightness = lv_slider_create(scr, NULL);
+  lv_slider_set_knob_in(sliderBrightness, true);
+  lv_slider_set_range(sliderBrightness, 0, 100);
+  lv_slider_set_value(sliderBrightness, backlightPercent * 100, LV_ANIM_OFF);
+  lv_obj_set_size(sliderBrightness, 25, displayHeight);
+  lv_obj_set_event_cb(sliderBrightness, sliderBrightness_event_handler);
+  lv_obj_align(sliderBrightness, NULL, LV_ALIGN_IN_RIGHT_MID, 0, 0);
+
   lv_obj_t * buttonTest = lv_btn_create(scr, NULL);
   lv_btn_set_fit(buttonTest, LV_FIT_TIGHT);
   lv_obj_align(buttonTest, NULL, LV_ALIGN_IN_BOTTOM_LEFT, 0, 0);
@@ -429,21 +433,22 @@ void loop() {
   //Serial.printf("loop: displayActiveCurrent=%d\n", displayActiveCurrent);
   if (displayActiveCurrent) {
     if (!displayActivePrevious) {
-      Serial.println("Display brighten");
-      setDisplayBrightness(backlightPercent, false);
+      Serial.println("Activity timeout reset");
+      if (backlightPercent > BACKLIGHT_INACTIVE_PERCENT) {
+        Serial.println("Display brighten");
+        setDisplayBrightness(backlightPercent, false, true);
+      }
     }
   } else {
     if (displayActivePrevious) {
-      Serial.println("Display dim");
-      setDisplayBrightness(BACKLIGHT_INACTIVE_PERCENT, false);
+      Serial.println("Activity timeout elapsed");
+      if (backlightPercent > BACKLIGHT_INACTIVE_PERCENT) {
+        Serial.println("Display dim");
+        setDisplayBrightness(BACKLIGHT_INACTIVE_PERCENT, false, true);
+      }
     }
   }
   displayActivePrevious = displayActiveCurrent;
-
-  if (touchPointCurrent.y > displayHeight - BACKLIGHT_CONTROL_HEIGHT) {
-    float widthPercent = touchPointCurrent.x / (float) displayWidth;
-    setDisplayBrightness(widthPercent, true);
-  }
 
   lv_task_handler();
   delay(5);
