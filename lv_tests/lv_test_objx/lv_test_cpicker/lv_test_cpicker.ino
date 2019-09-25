@@ -311,18 +311,18 @@ void colorPickerInstantiate(bool instantiate) {
 
     colorPicker = lv_cpicker_create(scr, NULL);
 #if false
-    lv_cpicker_set_type(colorPicker, LV_CPICKER_TYPE_DISC);
     lv_obj_set_size(colorPicker, pickerSize, pickerSize);
+    lv_cpicker_set_type(colorPicker, LV_CPICKER_TYPE_DISC);
     lv_cpicker_set_indicator_type(colorPicker, LV_CPICKER_INDICATOR_LINE);
 #else
-    lv_cpicker_set_type(colorPicker, LV_CPICKER_TYPE_RECT);
     lv_obj_set_size(colorPicker, pickerSize, pickerSize / 2);
+    lv_cpicker_set_type(colorPicker, LV_CPICKER_TYPE_RECT);
     lv_cpicker_set_indicator_type(colorPicker, LV_CPICKER_INDICATOR_LINE);
 #endif
+    lv_obj_align(colorPicker, NULL, LV_ALIGN_CENTER, 0, 0);
     lv_cpicker_set_style(colorPicker, LV_CPICKER_STYLE_MAIN, &styleMain);
     lv_cpicker_set_style(colorPicker, LV_CPICKER_STYLE_INDICATOR, &styleIndicator);
     lv_obj_set_event_cb(colorPicker, colorPicker_event_handler);
-    lv_obj_align(colorPicker, NULL, LV_ALIGN_CENTER, 0, 0);
 
     lv_label_set_text(buttonInstantiate_label, "Hide");
   } else {
