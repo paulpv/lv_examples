@@ -16,15 +16,25 @@ static lv_color_t buf_2[LV_HOR_RES_MAX * 10];
 #define TFT_CS 5
 #define TFT_DC 26
 #define TFT_RST 25
-#define TFT_MOSI 23
-#define TFT_MISO 19
-#define TFT_CLK 18
+//#define TFT_MOSI 23
+//#define TFT_MISO 19
+//#define TFT_SCLK 18
 #define TFT_LITE 32
 
-// NOTE: ESP32 can't use https://github.com/PaulStoffregen/ILI9341_t3/ per https://github.com/PaulStoffregen/ILI9341_t3/issues/37
+// TODO:(pv) Look in to seeing if TinyPICO (esp32-pico-d4) supports 80MHz SPI!
+//  https://docs.espressif.com/projects/esp-idf/en/latest/api-reference/peripherals/spi_master.html#gpio-matrix-and-iomux
+//  https://www.espressif.com/sites/default/files/documentation/esp32-pico-d4_datasheet_en.pdf
+//  https://blog.littlevgl.com/2019-01-31/esp32
+//    "The maximum clock rate is still 40 MHz because of ILI9341 but hopefully, it will give better signals."
+
+/**
+ * Adafruit "2.8" TFT LCD with Cap Touch Breakout Board w/MicroSD Socket"
+ * https://www.adafruit.com/product/2090
+ */
 // https://github.com/adafruit/Adafruit-GFX-Library/blob/master/Adafruit_GFX.h
 // https://github.com/adafruit/Adafruit-GFX-Library/blob/master/Adafruit_SPITFT.h
 #include <Adafruit_ILI9341.h> // Display Driver https://github.com/adafruit/Adafruit_ILI9341
+// NOTE: ESP32 can't use https://github.com/PaulStoffregen/ILI9341_t3/ per https://github.com/PaulStoffregen/ILI9341_t3/issues/37
 
 // Using faster Hardware SPI (HWSPI); Providing MISO/MOSI/CLK results in slower Software SPI (SWSPI)
 Adafruit_ILI9341 display = Adafruit_ILI9341(TFT_CS, TFT_DC, TFT_RST);
@@ -300,10 +310,18 @@ void colorPickerInstantiate(bool instantiate) {
     lv_obj_t * scr = lv_disp_get_scr_act(disp);
 
     colorPicker = lv_cpicker_create(scr, NULL);
+#if false
+    lv_cpicker_set_type(colorPicker, LV_CPICKER_TYPE_DISC);
+    lv_obj_set_size(colorPicker, pickerSize, pickerSize);
+    lv_cpicker_set_indicator_type(colorPicker, LV_CPICKER_INDICATOR_LINE);
+#else
+    lv_cpicker_set_type(colorPicker, LV_CPICKER_TYPE_RECT);
+    lv_obj_set_size(colorPicker, pickerSize, pickerSize / 2);
+    lv_cpicker_set_indicator_type(colorPicker, LV_CPICKER_INDICATOR_LINE);
+#endif
     lv_cpicker_set_style(colorPicker, LV_CPICKER_STYLE_MAIN, &styleMain);
     lv_cpicker_set_style(colorPicker, LV_CPICKER_STYLE_INDICATOR, &styleIndicator);
     lv_obj_set_event_cb(colorPicker, colorPicker_event_handler);
-    lv_obj_set_size(colorPicker, pickerSize, pickerSize);
     lv_obj_align(colorPicker, NULL, LV_ALIGN_CENTER, 0, 0);
 
     lv_label_set_text(buttonInstantiate_label, "Hide");
