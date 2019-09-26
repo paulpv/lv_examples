@@ -288,20 +288,29 @@ static void colorPicker_event_handler(lv_obj_t * cpicker, lv_event_t event) {
   Serial.printf("colorPicker_event_handler: LV_EVENT_VALUE_CHANGED color=0x%08X\n", color);
 }
 
+uint32_t pickerSize;
+lv_obj_t * buttonDisk = NULL;
+lv_obj_t * buttonRect;
 lv_obj_t * buttonCircle;
 lv_obj_t * buttonIn;
 lv_obj_t * buttonLine;
 
 static void buttonIndicator_event_handler(lv_obj_t * button, lv_event_t event) {
-  uint8_t indicator;
-  if (button == buttonCircle) {
-    indicator = LV_CPICKER_INDICATOR_CIRCLE;    
+  if (button == buttonDisk) {
+    lv_cpicker_set_type(colorPicker, LV_CPICKER_TYPE_DISC);    
+    lv_obj_set_size(colorPicker, pickerSize, pickerSize);
+    lv_obj_align(colorPicker, NULL, LV_ALIGN_CENTER, 0, 0);
+  } else if (button == buttonRect) {
+    lv_cpicker_set_type(colorPicker, LV_CPICKER_TYPE_RECT);    
+    lv_obj_set_size(colorPicker, pickerSize, pickerSize / 2);
+    lv_obj_align(colorPicker, NULL, LV_ALIGN_CENTER, 0, 0);
+  } else if (button == buttonCircle) {
+    lv_cpicker_set_indicator_type(colorPicker, LV_CPICKER_INDICATOR_CIRCLE);
   } else if (button == buttonIn) {
-    indicator = LV_CPICKER_INDICATOR_IN;    
+    lv_cpicker_set_indicator_type(colorPicker, LV_CPICKER_INDICATOR_IN);
   } else if (button == buttonLine) {
-    indicator = LV_CPICKER_INDICATOR_LINE;
+    lv_cpicker_set_indicator_type(colorPicker, LV_CPICKER_INDICATOR_LINE);
   }
-  lv_cpicker_set_indicator_type(colorPicker, indicator);
 }
 
 void colorPickerInstantiate(bool instantiate) {
@@ -311,7 +320,7 @@ void colorPickerInstantiate(bool instantiate) {
 
     const uint32_t dispWidth = lv_disp_get_hor_res(disp);
     const uint32_t dispHeight = lv_disp_get_ver_res(disp);
-    const uint32_t pickerSize = (uint32_t)round(LV_MATH_MIN(dispWidth, dispHeight) * 0.8);
+    pickerSize = (uint32_t)round(LV_MATH_MIN(dispWidth, dispHeight) * 0.8);
 
     static lv_style_t styleMain;
     lv_style_copy(&styleMain, &lv_style_plain);
@@ -338,7 +347,22 @@ void colorPickerInstantiate(bool instantiate) {
     lv_cpicker_set_style(colorPicker, LV_CPICKER_STYLE_INDICATOR, &styleIndicator);
     lv_obj_set_event_cb(colorPicker, colorPicker_event_handler);
 
-    buttonCircle = lv_btn_create(scr, NULL);
+    if (buttonDisk == NULL) {
+      buttonDisk = lv_btn_create(scr, NULL);
+      lv_btn_set_fit(buttonDisk, LV_FIT_TIGHT);
+      lv_obj_align(buttonDisk, NULL, LV_ALIGN_IN_LEFT_MID, 0, -30);
+      lv_obj_set_event_cb(buttonDisk, buttonIndicator_event_handler);
+      lv_obj_t * buttonDisk_label = lv_label_create(buttonDisk, NULL);
+      lv_label_set_text(buttonDisk_label, "D");
+  
+      buttonRect = lv_btn_create(scr, NULL);
+      lv_btn_set_fit(buttonRect, LV_FIT_TIGHT);
+      lv_obj_align(buttonRect, NULL, LV_ALIGN_IN_LEFT_MID, 0, +30);
+      lv_obj_set_event_cb(buttonRect, buttonIndicator_event_handler);
+      lv_obj_t * buttonRect_label = lv_label_create(buttonRect, NULL);
+      lv_label_set_text(buttonRect_label, "R");
+  
+      buttonCircle = lv_btn_create(scr, NULL);
     lv_btn_set_fit(buttonCircle, LV_FIT_TIGHT);
     lv_obj_align(buttonCircle, NULL, LV_ALIGN_IN_TOP_RIGHT, 0, 0);
     lv_obj_set_event_cb(buttonCircle, buttonIndicator_event_handler);
