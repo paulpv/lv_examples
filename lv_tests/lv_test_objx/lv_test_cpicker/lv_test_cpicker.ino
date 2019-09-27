@@ -335,7 +335,7 @@ void colorPickerInstantiate(bool instantiate) {
     lv_obj_t * scr = lv_disp_get_scr_act(disp);
 
     colorPicker = lv_cpicker_create(scr, NULL);
-#if false
+#if true
     lv_obj_set_size(colorPicker, pickerSize, pickerSize);
     lv_cpicker_set_type(colorPicker, LV_CPICKER_TYPE_DISC);
 #else
@@ -363,25 +363,26 @@ void colorPickerInstantiate(bool instantiate) {
       lv_label_set_text(buttonRect_label, "R");
   
       buttonCircle = lv_btn_create(scr, NULL);
-    lv_btn_set_fit(buttonCircle, LV_FIT_TIGHT);
-    lv_obj_align(buttonCircle, NULL, LV_ALIGN_IN_TOP_RIGHT, 0, 0);
-    lv_obj_set_event_cb(buttonCircle, buttonIndicator_event_handler);
-    lv_obj_t * buttonCircle_label = lv_label_create(buttonCircle, NULL);
-    lv_label_set_text(buttonCircle_label, "C");
-
-    buttonIn = lv_btn_create(scr, NULL);
-    lv_btn_set_fit(buttonIn, LV_FIT_TIGHT);
-    lv_obj_align(buttonIn, NULL, LV_ALIGN_IN_RIGHT_MID, 0, 0);
-    lv_obj_set_event_cb(buttonIn, buttonIndicator_event_handler);
-    lv_obj_t * buttonIn_label = lv_label_create(buttonIn, NULL);
-    lv_label_set_text(buttonIn_label, "I");
-    
-    buttonLine = lv_btn_create(scr, NULL);
-    lv_btn_set_fit(buttonLine, LV_FIT_TIGHT);
-    lv_obj_align(buttonLine, NULL, LV_ALIGN_IN_BOTTOM_RIGHT, 0, 0);
-    lv_obj_set_event_cb(buttonLine, buttonIndicator_event_handler);
-    lv_obj_t * buttonLine_label = lv_label_create(buttonLine, NULL);
-    lv_label_set_text(buttonLine_label, "L");
+      lv_btn_set_fit(buttonCircle, LV_FIT_TIGHT);
+      lv_obj_align(buttonCircle, NULL, LV_ALIGN_IN_TOP_RIGHT, 0, 0);
+      lv_obj_set_event_cb(buttonCircle, buttonIndicator_event_handler);
+      lv_obj_t * buttonCircle_label = lv_label_create(buttonCircle, NULL);
+      lv_label_set_text(buttonCircle_label, "C");
+  
+      buttonIn = lv_btn_create(scr, NULL);
+      lv_btn_set_fit(buttonIn, LV_FIT_TIGHT);
+      lv_obj_align(buttonIn, NULL, LV_ALIGN_IN_RIGHT_MID, 0, 0);
+      lv_obj_set_event_cb(buttonIn, buttonIndicator_event_handler);
+      lv_obj_t * buttonIn_label = lv_label_create(buttonIn, NULL);
+      lv_label_set_text(buttonIn_label, "I");
+      
+      buttonLine = lv_btn_create(scr, NULL);
+      lv_btn_set_fit(buttonLine, LV_FIT_TIGHT);
+      lv_obj_align(buttonLine, NULL, LV_ALIGN_IN_BOTTOM_RIGHT, 0, 0);
+      lv_obj_set_event_cb(buttonLine, buttonIndicator_event_handler);
+      lv_obj_t * buttonLine_label = lv_label_create(buttonLine, NULL);
+      lv_label_set_text(buttonLine_label, "L");
+    }
     
     lv_label_set_text(buttonInstantiate_label, "Hide");
   } else {
