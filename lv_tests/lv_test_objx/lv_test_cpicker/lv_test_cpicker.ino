@@ -5,8 +5,8 @@
 
 Ticker tick;
 static lv_disp_buf_t disp_buf;
-static lv_color_t buf_1[LV_HOR_RES_MAX * 10];
-static lv_color_t buf_2[LV_HOR_RES_MAX * 10];
+static lv_color_t * buf_1;
+static lv_color_t * buf_2;
 
 //
 //
@@ -14,12 +14,11 @@ static lv_color_t buf_2[LV_HOR_RES_MAX * 10];
 
 // TinyPICO https://www.tinypico.com/gettingstarted
 #define TFT_CS 5
-#define TFT_DC 26
-#define TFT_RST 25
+#define TFT_DC 32
 //#define TFT_MOSI 23
 //#define TFT_MISO 19
 //#define TFT_SCLK 18
-#define TFT_LITE 32
+#define TFT_LITE 33
 
 // TODO:(pv) Look in to seeing if TinyPICO (esp32-pico-d4) supports 80MHz SPI!
 //  https://docs.espressif.com/projects/esp-idf/en/latest/api-reference/peripherals/spi_master.html#gpio-matrix-and-iomux
@@ -37,7 +36,7 @@ static lv_color_t buf_2[LV_HOR_RES_MAX * 10];
 // NOTE: ESP32 can't use https://github.com/PaulStoffregen/ILI9341_t3/ per https://github.com/PaulStoffregen/ILI9341_t3/issues/37
 
 // Using faster Hardware SPI (HWSPI); Providing MISO/MOSI/CLK results in slower Software SPI (SWSPI)
-Adafruit_ILI9341 display = Adafruit_ILI9341(TFT_CS, TFT_DC, TFT_RST);
+Adafruit_ILI9341 display = Adafruit_ILI9341(TFT_CS, TFT_DC, -1);
 
 #include <Adafruit_FT6206.h> // Capacitive Touch Driver https://github.com/adafruit/Adafruit_FT6206_Library
 
@@ -313,7 +312,7 @@ static void buttonIndicator_event_handler(lv_obj_t * button, lv_event_t event) {
   }
 }
 
-void colorPickerInstantiate(bool instantiate) {
+static void colorPickerInstantiate(bool instantiate) {
   Serial.printf("colorPickerInstantiate: instantiate=%d\n", instantiate);
   if (instantiate) {
     if (colorPicker != NULL) return;
@@ -408,6 +407,20 @@ void setup() {
   displayHeight = display.height();
   Serial.printf("setup: Display Resolution: %dx%d\n", displayWidth, displayHeight);
 
+  setupDisplayBrightness();
+
+  // read diagnostics (optional but can help debug problems)
+  uint8_t x = display.readcommand8(ILI9341_RDMODE);
+  Serial.println("Display Power Mode: 0x" + String(x, HEX));
+  x = display.readcommand8(ILI9341_RDMADCTL);
+  Serial.println("MADCTL Mode: 0x" + String(x, HEX));
+  x = display.readcommand8(ILI9341_RDPIXFMT);
+  Serial.println("Pixel Format: 0x" + String(x, HEX));
+  x = display.readcommand8(ILI9341_RDIMGFMT);
+  Serial.println("Image Format: 0x" + String(x, HEX));
+  x = display.readcommand8(ILI9341_RDSELFDIAG);
+  Serial.println("Self Diagnostic: 0x" + String(x, HEX));
+
   if (!touch.begin(TOUCH_THRESHOLD)) {
     Serial.println("setup: Unable to start touchscreen.");
   }
@@ -415,7 +428,6 @@ void setup() {
     Serial.println("setup: Touchscreen started.");
   }
 
-  setupDisplayBrightness();
 
   lv_init();
 
@@ -461,7 +473,7 @@ void setup() {
   colorPickerInstantiate(true);
 
 #if true
-  lv_cpicker_set_color(colorPicker, LV_COLOR_CYAN);
+  //lv_cpicker_set_color(colorPicker, LV_COLOR_CYAN);
 #else
   lv_anim_t a;
   a.var = colorPicker;
