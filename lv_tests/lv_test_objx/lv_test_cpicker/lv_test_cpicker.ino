@@ -15,6 +15,7 @@ static lv_color_t * buf_2;
 // TinyPICO https://www.tinypico.com/gettingstarted
 #define TFT_CS 5
 #define TFT_DC 32
+#define TFT_RST -1
 //#define TFT_MOSI 23
 //#define TFT_MISO 19
 //#define TFT_SCLK 18
@@ -36,7 +37,7 @@ static lv_color_t * buf_2;
 // NOTE: ESP32 can't use https://github.com/PaulStoffregen/ILI9341_t3/ per https://github.com/PaulStoffregen/ILI9341_t3/issues/37
 
 // Using faster Hardware SPI (HWSPI); Providing MISO/MOSI/CLK results in slower Software SPI (SWSPI)
-Adafruit_ILI9341 display = Adafruit_ILI9341(TFT_CS, TFT_DC, -1);
+Adafruit_ILI9341 display = Adafruit_ILI9341(TFT_CS, TFT_DC, TFT_RST);
 
 #include <Adafruit_FT6206.h> // Capacitive Touch Driver https://github.com/adafruit/Adafruit_FT6206_Library
 
@@ -251,8 +252,16 @@ static void buttonTest_event_handler(lv_obj_t * button, lv_event_t event) {
   lv_obj_invalidate(lv_disp_get_scr_act(disp));
 }
 
+uint32_t pickerSize;
 lv_obj_t * buttonInstantiate_label = NULL;
 lv_obj_t * colorPicker = NULL;
+//lv_obj_t * labelColor = NULL;
+lv_obj_t * buttonDisk = NULL;
+lv_obj_t * buttonRect = NULL;
+//lv_obj_t * buttonCircle = NULL;
+//lv_obj_t * buttonIn = NULL;
+//lv_obj_t * buttonLine = NULL;
+//static char labelColorBuf[128];
 
 static void buttonShow_event_handler(lv_obj_t * button, lv_event_t event) {
   //Serial.printf("buttonShow_event_handler: event=%d\n", event);
@@ -283,18 +292,13 @@ static void colorPicker_event_handler(lv_obj_t * cpicker, lv_event_t event) {
         break;
       }
   }
-  lv_color_t color = lv_cpicker_get_color(cpicker);
-  Serial.printf("colorPicker_event_handler: LV_EVENT_VALUE_CHANGED color=0x%08X\n", color);
+  lv_color_t color16 = lv_cpicker_get_color(cpicker);
+  uint32_t color32 = lv_color_to32(color16);
+  Serial.printf("colorPicker_event_handler: LV_EVENT_VALUE_CHANGED color32=0x%08X\n", color32);
 }
 
-uint32_t pickerSize;
-lv_obj_t * buttonDisk = NULL;
-lv_obj_t * buttonRect;
-lv_obj_t * buttonCircle;
-lv_obj_t * buttonIn;
-lv_obj_t * buttonLine;
-
 static void buttonIndicator_event_handler(lv_obj_t * button, lv_event_t event) {
+  if (event != LV_EVENT_CLICKED) return;
   if (button == buttonDisk) {
     lv_cpicker_set_type(colorPicker, LV_CPICKER_TYPE_DISC);    
     lv_obj_set_size(colorPicker, pickerSize, pickerSize);
@@ -303,12 +307,12 @@ static void buttonIndicator_event_handler(lv_obj_t * button, lv_event_t event) {
     lv_cpicker_set_type(colorPicker, LV_CPICKER_TYPE_RECT);    
     lv_obj_set_size(colorPicker, pickerSize, pickerSize / 2);
     lv_obj_align(colorPicker, NULL, LV_ALIGN_CENTER, 0, 0);
-  } else if (button == buttonCircle) {
-    lv_cpicker_set_indicator_type(colorPicker, LV_CPICKER_INDICATOR_CIRCLE);
+  } /*else if (button == buttonCircle) {
+    //lv_cpicker_set_indicator_type(colorPicker, LV_CPICKER_INDICATOR_CIRCLE);
   } else if (button == buttonIn) {
-    lv_cpicker_set_indicator_type(colorPicker, LV_CPICKER_INDICATOR_IN);
+    //lv_cpicker_set_indicator_type(colorPicker, LV_CPICKER_INDICATOR_IN);
   } else if (button == buttonLine) {
-    lv_cpicker_set_indicator_type(colorPicker, LV_CPICKER_INDICATOR_LINE);
+    //lv_cpicker_set_indicator_type(colorPicker, LV_CPICKER_INDICATOR_LINE);
   }
 }
 
@@ -323,13 +327,25 @@ static void colorPickerInstantiate(bool instantiate) {
 
     static lv_style_t styleMain;
     lv_style_copy(&styleMain, &lv_style_plain);
-    styleMain.line.width = pickerSize * 0.2;
-
     static lv_style_t styleIndicator;
-    lv_style_copy(&styleIndicator, &lv_style_plain);
+    lv_style_copy(&styleIndicator, &lv_style_pretty);
+#if false
+    styleMain.line.width = pickerSize * 0.25;
+
     styleIndicator.body.main_color = LV_COLOR_WHITE;
     styleIndicator.body.grad_color = styleIndicator.body.main_color;
     styleIndicator.body.opa = LV_OPA_80;
+#else
+    lv_theme_t * th = lv_theme_get_current();
+    styleMain.body.main_color = th->style.bg->body.main_color;
+    styleMain.body.grad_color = styleMain.body.main_color;
+    styleMain.line.width = pickerSize * 0.2;
+    //styleMain.body.radius = 5;
+
+    styleIndicator.body.border.color = LV_COLOR_WHITE;
+    styleIndicator.body.opa = LV_OPA_COVER;
+    styleIndicator.body.border.opa = LV_OPA_COVER;
+#endif
 
     lv_obj_t * scr = lv_disp_get_scr_act(disp);
 
@@ -346,6 +362,15 @@ static void colorPickerInstantiate(bool instantiate) {
     lv_cpicker_set_style(colorPicker, LV_CPICKER_STYLE_INDICATOR, &styleIndicator);
     lv_obj_set_event_cb(colorPicker, colorPicker_event_handler);
 
+    /*
+    if (labelColor == NULL) {
+      labelColor = lv_label_create(scr, NULL);
+      lv_obj_align(labelColor, NULL, LV_ALIGN_CENTER, 0, 0);
+      lv_obj_set_auto_realign(labelColor, true);
+      sprintf(labelColorBuf, "0x%08X\n0x%06X", color16, color32);
+      lv_label_set_text(labelColor, labelColorBuf);
+    }
+    */
     if (buttonDisk == NULL) {
       buttonDisk = lv_btn_create(scr, NULL);
       lv_btn_set_fit(buttonDisk, LV_FIT_TIGHT);
@@ -353,28 +378,33 @@ static void colorPickerInstantiate(bool instantiate) {
       lv_obj_set_event_cb(buttonDisk, buttonIndicator_event_handler);
       lv_obj_t * buttonDisk_label = lv_label_create(buttonDisk, NULL);
       lv_label_set_text(buttonDisk_label, "D");
-  
+    }
+    if (buttonRect == NULL) {
       buttonRect = lv_btn_create(scr, NULL);
       lv_btn_set_fit(buttonRect, LV_FIT_TIGHT);
       lv_obj_align(buttonRect, NULL, LV_ALIGN_IN_LEFT_MID, 0, +30);
       lv_obj_set_event_cb(buttonRect, buttonIndicator_event_handler);
       lv_obj_t * buttonRect_label = lv_label_create(buttonRect, NULL);
       lv_label_set_text(buttonRect_label, "R");
-  
+    }
+    /*
+    if (buttonCircle == NULL) {
       buttonCircle = lv_btn_create(scr, NULL);
       lv_btn_set_fit(buttonCircle, LV_FIT_TIGHT);
       lv_obj_align(buttonCircle, NULL, LV_ALIGN_IN_TOP_RIGHT, 0, 0);
       lv_obj_set_event_cb(buttonCircle, buttonIndicator_event_handler);
       lv_obj_t * buttonCircle_label = lv_label_create(buttonCircle, NULL);
       lv_label_set_text(buttonCircle_label, "C");
-  
+    }
+    if (buttonIn == NULL) {
       buttonIn = lv_btn_create(scr, NULL);
       lv_btn_set_fit(buttonIn, LV_FIT_TIGHT);
       lv_obj_align(buttonIn, NULL, LV_ALIGN_IN_RIGHT_MID, 0, 0);
       lv_obj_set_event_cb(buttonIn, buttonIndicator_event_handler);
       lv_obj_t * buttonIn_label = lv_label_create(buttonIn, NULL);
       lv_label_set_text(buttonIn_label, "I");
-      
+    }
+    if (buttonLine == NULL) {
       buttonLine = lv_btn_create(scr, NULL);
       lv_btn_set_fit(buttonLine, LV_FIT_TIGHT);
       lv_obj_align(buttonLine, NULL, LV_ALIGN_IN_BOTTOM_RIGHT, 0, 0);
@@ -382,12 +412,42 @@ static void colorPickerInstantiate(bool instantiate) {
       lv_obj_t * buttonLine_label = lv_label_create(buttonLine, NULL);
       lv_label_set_text(buttonLine_label, "L");
     }
+    */
     
     lv_label_set_text(buttonInstantiate_label, "Hide");
   } else {
-    if (colorPicker == NULL) return;
-    lv_obj_del(colorPicker);
-    colorPicker = NULL;
+    /*
+    if (labelColor != NULL) {
+      lv_obj_del(labelColor);
+      labelColor = NULL;
+    }
+    */
+    if (buttonDisk != NULL) {
+      lv_obj_del(buttonDisk);
+      buttonDisk = NULL;
+    }
+    if (buttonRect != NULL) {
+      lv_obj_del(buttonRect);
+      buttonRect = NULL;
+    }
+    /*
+    if (buttonCircle != NULL) {
+      lv_obj_del(buttonCircle);
+      buttonCircle = NULL;
+    }
+    if (buttonIn != NULL) {
+      lv_obj_del(buttonIn);
+      buttonIn = NULL;
+    }
+    if (buttonLine != NULL) {
+      lv_obj_del(buttonLine);
+      buttonLine = NULL;
+    }
+    */
+    if (colorPicker != NULL) {
+      lv_obj_del(colorPicker);
+      colorPicker = NULL;
+    }
 
     lv_label_set_text(buttonInstantiate_label, "Show");
   }
@@ -423,11 +483,12 @@ void setup() {
 
   if (!touch.begin(TOUCH_THRESHOLD)) {
     Serial.println("setup: Unable to start touchscreen.");
-  }
-  else {
+  } else {
     Serial.println("setup: Touchscreen started.");
   }
 
+  buf_1 = new lv_color_t[LV_HOR_RES_MAX * 128];
+  buf_2 = new lv_color_t[LV_HOR_RES_MAX * 128];
 
   lv_init();
 
