@@ -31,7 +31,7 @@ typedef struct {
   lv_color_hsv_t hsv;
 } test_rgb_to_hsv_t;
 
-bool effectivelyEqual(uint8_t a, uint8_t b, uint8_t d) {
+bool isClose(uint8_t a, uint8_t b, uint8_t d) {
   return abs(a - b) <= d;
 }
 
@@ -72,9 +72,9 @@ void testRgbToHsvtoRgb() {
     //
     lv_color_hsv_t colorHsvActual = lv_color_to_hsv(colorRgbExpected);
     Serial.printf("testRgbToHsvtoRgb: colorHsvActual={ %d, %d, %d }\n", colorHsvActual.h, colorHsvActual.s, colorHsvActual.v);
-    if (!effectivelyEqual(colorHsvActual.h, colorHsvExpected.h, 3) || 
-        !effectivelyEqual(colorHsvActual.s, colorHsvExpected.s, 3) || 
-        !effectivelyEqual(colorHsvActual.v, colorHsvExpected.v, 3)) {
+    if (!isClose(colorHsvActual.h, colorHsvExpected.h, 3) || 
+        !isClose(colorHsvActual.s, colorHsvExpected.s, 3) || 
+        !isClose(colorHsvActual.v, colorHsvExpected.v, 3)) {
       Serial.println("testRgbToHsvtoRgb: FAIL!");
       break;
     }
@@ -84,9 +84,9 @@ void testRgbToHsvtoRgb() {
     //
     lv_color_t colorRgbActual = lv_color_hsv_to_rgb(colorHsvExpected.h, colorHsvExpected.s, colorHsvExpected.v);
     Serial.printf("testRgbToHsvtoRgb: colorRgbActual=0x%08X\n", colorRgbActual);
-    if (!effectivelyEqual(colorRgbActual.ch.red, colorRgbExpected.ch.red, 3) || 
-        !effectivelyEqual(colorRgbActual.ch.green, colorRgbExpected.ch.green, 3) || 
-        !effectivelyEqual(colorRgbActual.ch.blue, colorRgbExpected.ch.blue, 3)) {
+    if (!isClose(colorRgbActual.ch.red, colorRgbExpected.ch.red, 3) || 
+        !isClose(colorRgbActual.ch.green, colorRgbExpected.ch.green, 3) || 
+        !isClose(colorRgbActual.ch.blue, colorRgbExpected.ch.blue, 3)) {
       Serial.println("testRgbToHsvtoRgb: FAIL!");
       break;
     }
